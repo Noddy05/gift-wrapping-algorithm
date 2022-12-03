@@ -86,9 +86,10 @@ void draw() {
 void drawAnimation() {
   for (int i = 0; i < unitPath.size(); i++) {
     int nextIndex = (i + 1) % unitPath.size();
-    float t1 = sin(max(min((millis() - 1000) / 5.0 / dist(completePath.get(i).x, completePath.get(i).y, 
+    float time = max(millis() - 1000, 0) / 5.0;
+    float t1 = sin(max(min(time / dist(completePath.get(i).x, completePath.get(i).y, 
       unitPath.get(i).x, unitPath.get(i).y), HALF_PI), 0));
-    float t2 = sin(max(min((millis() - 1000) / 5.0 / dist(completePath.get(nextIndex).x, completePath.get(nextIndex).y, 
+    float t2 = sin(max(min(time / 5.0 / dist(completePath.get(nextIndex).x, completePath.get(nextIndex).y, 
       unitPath.get(nextIndex).x, unitPath.get(nextIndex).y), HALF_PI), 0));
       
     PVector thisPoint = unitPath.get(i);
