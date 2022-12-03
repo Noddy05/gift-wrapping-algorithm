@@ -1,38 +1,51 @@
 
 float angle = 0;
-final int nPoints = 2500;
+final int nPoints = 50;
 PVector[] points = new PVector[nPoints];
 ArrayList<PVector> path = new ArrayList<PVector>();
 int border = 100;
+PVector center;
 
 
-PVector a;
+//How many pixels on the circle before a point appears
+float pointEvery = 24;
+
+PVector a = new PVector(0, -1, 0);
+
+int index = -1;
+//Set before calling calculate();
+PVector currentPoint;
+float closest = -1;
+int closestIndex = 0;
+
+ArrayList<PVector> unitPath = new ArrayList<PVector>();
+ArrayList<PVector> completePath = new ArrayList<PVector>();
+
 
 void setup() {
   size(800, 800);
+  background(30);
 
+  center = new PVector(width / 2, height / 2);
   randomPoints();
   addLeftMost();
-  
-  a = new PVector(0, -1, 0);
-  frameRate(4);
 }
 
-void randomPoints(){
+void randomPoints() {
   for (int i = 0; i < nPoints; i++) {
     //Random within a box
-    //PVector randomPosition = new PVector(random(border, width - border), random(border, height - border));
-    
+    PVector randomPosition = new PVector(random(border, width - border), random(border, height - border));
+
     //Random within a  circle
-    PVector randomPosition = PVector.fromAngle(random(TWO_PI)).mult(random((width - border) / 2));
-    
+    /*PVector randomPosition = PVector.fromAngle(random(TWO_PI)).mult(random((width - border) / 2));
     randomPosition.y *= (float)height / width;
-    randomPosition.add(new PVector(width / 2, height / 2));
+    randomPosition.add(new PVector(width / 2, height / 2));*/
+    
     points[i] = randomPosition;
   }
 }
 
-void addLeftMost(){
+void addLeftMost() {
   int leftMostIndex = 0;
   for (int i = 1; i < nPoints; i++) {
     if (points[leftMostIndex].x > points[i].x) {
@@ -40,33 +53,64 @@ void addLeftMost(){
     }
   }
   path.add(points[leftMostIndex]);
+
+  currentPoint = path.get(0);
+  while (!calculate());
+  for (int i = 0; i < path.size(); i++) {
+    PVector thisPath = path.get(i);
+    PVector nextPath = path.get((i + 1) % path.size());
+    PVector thisUnitPath = convertToUnit(thisPath, center);
+    PVector nextUnitPath = convertToUnit(nextPath, center);
+    float distanceBetween = dist(thisUnitPath.x, thisUnitPath.y, nextUnitPath.x, nextUnitPath.y);
+
+    int totalPoints = ceil(distanceBetween / pointEvery);
+    completePath.add(thisPath);
+    unitPath.add(thisUnitPath);
+    for (int p = 0; p < distanceBetween / pointEvery; p++) {
+      PVector position = thisPath.copy().add((nextPath.copy().sub(thisPath)).mult((float)p / totalPoints));
+      PVector unitPosition = convertToUnit(position, center);
+      completePath.add(position);
+      unitPath.add(unitPosition);
+    }
+  }
 }
 
 void draw() {
   background(30);
-  
-  currentPoint = path.get(0);
-  while(!calculate());
-  
   stroke(220, 30, 120);
-  line(path.get(0).x, path.get(0).y, path.get(path.size() - 1).x, path.get(path.size() - 1).y);
+  //drawOutline();
   drawPoints();
+  drawAnimation();
 }
 
+void drawAnimation() {
+  for (int i = 0; i < unitPath.size(); i++) {
+    int nextIndex = (i + 1) % unitPath.size();
+    float t1 = sin(max(min((millis() - 1000) / 5.0 / dist(completePath.get(i).x, completePath.get(i).y, 
+      unitPath.get(i).x, unitPath.get(i).y), HALF_PI), 0));
+    float t2 = sin(max(min((millis() - 1000) / 5.0 / dist(completePath.get(nextIndex).x, completePath.get(nextIndex).y, 
+      unitPath.get(nextIndex).x, unitPath.get(nextIndex).y), HALF_PI), 0));
+      
+    PVector thisPoint = unitPath.get(i);
+    PVector nextPoint = unitPath.get(nextIndex);
+    PVector thisInterpolatedPoint = thisPoint.copy().add(completePath.get(i).copy().sub(thisPoint).mult(t1));
+    PVector nextInterpolatedPoint = nextPoint.copy().add(completePath.get((i + 1) % unitPath.size()).copy().sub(nextPoint).mult(t2));
+    stroke(255);
+    line(thisInterpolatedPoint.x, thisInterpolatedPoint.y, nextInterpolatedPoint.x, nextInterpolatedPoint.y);
+  }
+}
+
+PVector convertToUnit(PVector v, PVector c) {
+  return v.copy().sub(c).normalize().mult((width - border) / 2 + 100).add(c);
+}
 
 //Returns true when calculations are done
-
-int index = -1;
-//Set before calling calculate();
-PVector currentPoint;
-float closest = -1;
-int closestIndex = 0;
-boolean calculate(){
+boolean calculate() {
   index++;
-  if(index >= nPoints){
+  if (index >= nPoints) {
     if (pathContains(closestIndex))
       return true;
-      
+
     updateVariables();
   }
   PVector nextPoint = points[index];
@@ -76,37 +120,32 @@ boolean calculate(){
     closest = a.dot(b);
     closestIndex = index;
   }
-  
+
   return false;
 }
 
-void updateVariables(){
+void updateVariables() {
   path.add(points[closestIndex]);
   a = path.get(path.size() - 1).copy().sub(path.get(path.size() - 2));
-  drawPoints();
-  
+
   currentPoint = path.get(path.size() - 1);
   closest = -1;
   closestIndex = 0;
   index = 0;
 }
 
-void drawPoints() {
-  stroke(220, 30, 120);
+void drawOutline() {
+  stroke(220, 30, 120);  
+  line(path.get(0).x, path.get(0).y, path.get(path.size() - 1).x, path.get(path.size() - 1).y);
   for (int i = 1; i < path.size(); i++) {
     line(path.get(i).x, path.get(i).y, path.get(i - 1).x, path.get(i - 1).y);
   }
+}
+
+void drawPoints() {
+  fill(255);
   noStroke();
-
   for (int i = 0; i < nPoints; i++) {
-    fill(255);
-    if (pathContains(i)) {
-      fill(255, 0, 0);
-      if (path.get(path.size() - 1) == points[i]) {
-        fill(0, 255, 0);
-      }
-    }
-
     circle(points[i].x, points[i].y, 5);
   }
 }
